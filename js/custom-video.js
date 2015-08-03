@@ -9,6 +9,7 @@ var CustomVideo = function(container) {
     var __ = this;
     
     __.container = container;
+    __.isFirstTimePlaying = true;
     __.isPlaying = false;
     __.canPlayThrough = false;
     
@@ -16,6 +17,7 @@ var CustomVideo = function(container) {
 };
 
 (function($) {
+    
     CustomVideo.prototype.init = function() {
         var __ = this;
         
@@ -23,6 +25,18 @@ var CustomVideo = function(container) {
         __.video = $(__.container).children('video')[0];
         __.glyph = $(__.container).find('.glyphicon');
         __.touchLayer = $(__.container).children('a')[0];
+        
+        // prepare the presentation of the player
+        var src = $(__.video).prop('poster');
+        if(src) {
+            var img = new Image();
+            img.onload = function() {
+                $(img).css({ position: 'absolute', width: '100%', height: '100%', top: 0, left: 0 });
+                $(__.touchLayer).prepend(img);
+            };
+            img.src = src;
+            __.posterImage = img;
+        }
         
         // define the play and pause timelines for later
         TweenLite.set(__.touchLayer, {
@@ -39,6 +53,11 @@ var CustomVideo = function(container) {
         function handleTouchLayerClicked(evt) {
             evt.preventDefault();
             
+            if(__.isFirstTimePlaying) {
+                TweenLite.to(__.posterImage, 1.5, { opacity: 0, ease: Power2.easeOut });
+                __.isFirstTimePlaying = false;
+            }
+            
             if(__.isPlaying) {
                 console.log('pause')
                 __.glyph.removeClass('glyphicon-play').addClass('glyphicon-pause');
@@ -54,16 +73,18 @@ var CustomVideo = function(container) {
         }
         
         // set up events
-        if(isMobile) {
-            var gestureTouchLayer = new Hammer(__.touchLayer);
-            gestureTouchLayer.on('tap', handleTouchLayerClicked);
-        } else {
-            $(__.touchLayer).on('click', handleTouchLayerClicked);
-        }
+        $(__.touchLayer).on('click', handleTouchLayerClicked);
+//        if(isMobile) {
+//            var gestureTouchLayer = new Hammer(__.touchLayer);
+//            gestureTouchLayer.on('tap', handleTouchLayerClicked);
+//        } else {
+//            $(__.touchLayer).on('click', handleTouchLayerClicked);
+//        }
             
         $(__.video).on('ended', function(evt) {
             console.log('ended')
             __.isPlaying = false;
+            __.isFirstTimePlaying = true;
             __.showReadyPlay();
         });
         
@@ -87,9 +108,11 @@ var CustomVideo = function(container) {
     };
     
     CustomVideo.prototype.showReadyPlay = function() {
-        console.log(this)
-        this.glyph.removeClass('glyphicon-pause').addClass('glyphicon-play');
-        TweenLite.to(this.glyph, 1, { opacity: 0.7, fontSize: 94, ease: Power1.easeInOut });
+        var __ = this;
+        console.log(this);
+        __.glyph.removeClass('glyphicon-pause').addClass('glyphicon-play');
+        TweenLite.to(__.glyph, 1, { opacity: 0.7, fontSize: 94, ease: Power1.easeInOut });
+        TweenLite.to(__.posterImage, 1.5, { opacity: 1, ease: Power2.easeOut });
     };
     
 })(jQuery);
