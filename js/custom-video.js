@@ -56,19 +56,21 @@ var CustomVideo = function(container) {
             if(__.isFirstTimePlaying) {
                 TweenLite.to(__.posterImage, 1.5, { opacity: 0, ease: Power2.easeOut });
                 __.isFirstTimePlaying = false;
+                ga('send', 'event', 'video', 'play', 'first time');
             }
             
             if(__.isPlaying) {
-                console.log('pause')
                 __.glyph.removeClass('glyphicon-play').addClass('glyphicon-pause');
                 __.glyphTL.restart();
                 __.glyphTL.play();
                 __.video.pause();
+                ga('send', 'event', 'video', 'pause', 'was playing');
             } else {
                 __.glyph.removeClass('glyphicon-pause').addClass('glyphicon-play');
                 __.glyphTL.restart();
                 __.glyphTL.play();
                 __.video.play();
+                ga('send', 'event', 'video', 'play', 'was paused');
             }
         }
         
