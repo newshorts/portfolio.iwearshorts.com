@@ -304,6 +304,7 @@ var videos = [];
         var downPromptG = $('.downPrompt .glyphicon');
 
         var seagate = $('.seagate');
+        var whoami = $('.whoami');
 
         // setup
         function setup() {
@@ -368,7 +369,7 @@ var videos = [];
             var sAmt = window.document.body.scrollTop;
             var fadeAmount = sAmt / 100;
             TweenLite.set(downPrompt, { opacity: 1 - fadeAmount });
-            TweenLite.set(seagate, { opacity: (fadeAmount/8) });
+            TweenLite.set(whoami, { opacity: (fadeAmount/8) });
         }
 
         // events
@@ -378,7 +379,7 @@ var videos = [];
             evt.preventDefault();
             console.log('animating...');
             console.dir(window.document.body);
-            TweenLite.to(window.document.body, 1, { scrollTop: seagate.offset().top, ease: Power2.easeOut });
+            TweenLite.to(window.document.body, 1, { scrollTop: whoami.offset().top, ease: Power2.easeOut });
         });
 
         // run

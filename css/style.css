@@ -201,11 +201,35 @@ header .glyphicon {
     margin-top: 32px;
 }
 
+article h4 {
+    color: #777;
+}
+
+.label-default {
+    background-color: #d9d9d9;
+    color: white;
+}
+
+/* whoami */
+
+.whoami {
+    margin-top: 68%;
+    opacity: 0;
+}
+
+.whoami a {
+    font-weight: bold;
+    color: #444;
+}
+
+.whoami a:hover {
+    text-decoration: underline;
+}
+
 /* seagate */
 
 .seagate {
-    opacity: 0;
-    margin-top: 68%;
+    
 }
 
 /* dali */
@@ -221,15 +245,6 @@ header .glyphicon {
 
 footer {
     margin-top: 30px;
-}
-
-footer a {
-    font-weight: bold;
-    color: #444;
-}
-
-footer a:hover {
-    text-decoration: underline;
 }
 
 footer p {
