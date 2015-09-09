@@ -298,13 +298,16 @@ var videos = [];
         var w, h;
         var container = $('.container');
         var welcome = $('.sentiment');
-        var apple = $('.client');
+        var client = $('.client');
         var downPrompt = $('.downPrompt');
         var downPromptP = $('.downPrompt p');
         var downPromptG = $('.downPrompt .glyphicon');
 
         var seagate = $('.seagate');
         var whoami = $('.whoami');
+        
+        var companyName = window.location.hash || 'Apple';
+        companyName = companyName.replace('#', '');
 
         // setup
         function setup() {
@@ -325,7 +328,7 @@ var videos = [];
                 z: 0.001
             });
 
-            TweenLite.set(apple, {
+            TweenLite.set(client, {
                 top: ((h/3) * 1.3333) - 100,
                 z: 0.001
             });
@@ -351,13 +354,15 @@ var videos = [];
         }
 
         function initWelcome() {
+            client.text(companyName);
+            
             var wtl = new TimelineMax();
             wtl.stop();
 
             wtl.addLabel('client', 0.85);
 
             wtl.to(welcome, 0.85, { opacity: 1, ease: new BezierEasing(.77,0,.82,1) });
-            wtl.to(apple, 1.3, { opacity: 1, delay: 0.3, ease: new BezierEasing(.77,0,.82,1) }, 'client');
+            wtl.to(client, 1.3, { opacity: 1, delay: 0.3, ease: new BezierEasing(.77,0,.82,1) }, 'client');
             wtl.to(downPrompt, 1, { opacity: 1, delay: 0.8, ease: Power1.easeInOut }, 'client');
             wtl.to(downPromptP, 1.6, { y: 0, delay: 0.8, ease: Power3.easeInOut}, 'client');
             wtl.to(downPromptG, 1.3, { y: 0, delay: 1.4, ease: Back.easeOut.config(1.7) }, 'client');
