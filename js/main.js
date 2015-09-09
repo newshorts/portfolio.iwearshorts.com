@@ -307,8 +307,8 @@ var videos = [];
         var whoami = $('.whoami');
         
         var companyName = window.location.hash || 'Apple';
-        companyName = companyName.replace('#', '');
-
+        var companies = ['Gaiam', 'Apple', 'SSB'];
+        
         // setup
         function setup() {
             setDimensions();
@@ -354,6 +354,12 @@ var videos = [];
         }
 
         function initWelcome() {
+            
+            // do some work on the name
+            companyName = companyName.replace('#', '');
+            if(companies.indexOf(companyName) === -1) {
+                companyName = 'Apple';
+            }
             client.text(companyName);
             
             var wtl = new TimelineMax();
