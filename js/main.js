@@ -307,7 +307,7 @@ var videos = [];
         var whoami = $('.whoami');
         
         var companyName = window.location.hash || 'Apple';
-        var companies = ['Gaiam', 'Apple', 'SSB'];
+        var companies = ['Gaiam', 'Apple', 'SSB', 'The Supply'];
         
         // setup
         function setup() {
@@ -356,7 +356,7 @@ var videos = [];
         function initWelcome() {
             
             // do some work on the name
-            companyName = companyName.replace('#', '');
+            companyName = companyName.replace('#', '').replace('%20', ' ');
             if(companies.indexOf(companyName) === -1) {
                 companyName = 'Apple';
             }
