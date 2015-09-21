@@ -307,7 +307,7 @@ var videos = [];
         var whoami = $('.whoami');
         
         var companyName = window.location.hash || 'Apple';
-        var companies = ['Gaiam', 'Apple', 'SSB', 'The Supply'];
+        var companies = ['Apple', 'SSB', 'The Supply', 'Christina'];
         
         // setup
         function setup() {
