@@ -1,401 +1,342 @@
 /**
- * BezierEasing - use bezier curve for transition easing function
- * by Gaëtan Renaudeau 2014 – MIT License
- *
- * Credits: is based on Firefox's nsSMILKeySpline.cpp
- * Usage:
- * var spline = BezierEasing(0.25, 0.1, 0.25, 1.0)
- * spline(x) => returns the easing value | x must be in [0, 1] range
- *
- */
-(function (definition) {
-  if (typeof exports === "object") {
-    module.exports = definition();
-  } else if (typeof define === 'function' && define.amd) {
-    define([], definition);
-  } else {
-    window.BezierEasing = definition();
-  }
-}(function () {
-  var global = this;
-
-  // These values are established by empiricism with tests (tradeoff: performance VS precision)
-  var NEWTON_ITERATIONS = 4;
-  var NEWTON_MIN_SLOPE = 0.001;
-  var SUBDIVISION_PRECISION = 0.0000001;
-  var SUBDIVISION_MAX_ITERATIONS = 10;
-
-  var kSplineTableSize = 11;
-  var kSampleStepSize = 1.0 / (kSplineTableSize - 1.0);
-
-  var float32ArraySupported = 'Float32Array' in global;
-
-  function A (aA1, aA2) { return 1.0 - 3.0 * aA2 + 3.0 * aA1; }
-  function B (aA1, aA2) { return 3.0 * aA2 - 6.0 * aA1; }
-  function C (aA1)      { return 3.0 * aA1; }
-
-  // Returns x(t) given t, x1, and x2, or y(t) given t, y1, and y2.
-  function calcBezier (aT, aA1, aA2) {
-    return ((A(aA1, aA2)*aT + B(aA1, aA2))*aT + C(aA1))*aT;
-  }
-
-  // Returns dx/dt given t, x1, and x2, or dy/dt given t, y1, and y2.
-  function getSlope (aT, aA1, aA2) {
-    return 3.0 * A(aA1, aA2)*aT*aT + 2.0 * B(aA1, aA2) * aT + C(aA1);
-  }
-
-  function binarySubdivide (aX, aA, aB) {
-    var currentX, currentT, i = 0;
-    do {
-      currentT = aA + (aB - aA) / 2.0;
-      currentX = calcBezier(currentT, mX1, mX2) - aX;
-      if (currentX > 0.0) {
-        aB = currentT;
-      } else {
-        aA = currentT;
-      }
-    } while (Math.abs(currentX) > SUBDIVISION_PRECISION && ++i < SUBDIVISION_MAX_ITERATIONS);
-    return currentT;
-  }
-
-  function BezierEasing (mX1, mY1, mX2, mY2) {
-    // Validate arguments
-    if (arguments.length !== 4) {
-      throw new Error("BezierEasing requires 4 arguments.");
-    }
-    for (var i=0; i<4; ++i) {
-      if (typeof arguments[i] !== "number" || isNaN(arguments[i]) || !isFinite(arguments[i])) {
-        throw new Error("BezierEasing arguments should be integers.");
-      }
-    }
-    if (mX1 < 0 || mX1 > 1 || mX2 < 0 || mX2 > 1) {
-      throw new Error("BezierEasing x values must be in [0, 1] range.");
-    }
-
-    var mSampleValues = float32ArraySupported ? new Float32Array(kSplineTableSize) : new Array(kSplineTableSize);
-
-    function newtonRaphsonIterate (aX, aGuessT) {
-      for (var i = 0; i < NEWTON_ITERATIONS; ++i) {
-        var currentSlope = getSlope(aGuessT, mX1, mX2);
-        if (currentSlope === 0.0) return aGuessT;
-        var currentX = calcBezier(aGuessT, mX1, mX2) - aX;
-        aGuessT -= currentX / currentSlope;
-      }
-      return aGuessT;
-    }
-
-    function calcSampleValues () {
-      for (var i = 0; i < kSplineTableSize; ++i) {
-        mSampleValues[i] = calcBezier(i * kSampleStepSize, mX1, mX2);
-      }
-    }
-
-    function getTForX (aX) {
-      var intervalStart = 0.0;
-      var currentSample = 1;
-      var lastSample = kSplineTableSize - 1;
-
-      for (; currentSample != lastSample && mSampleValues[currentSample] <= aX; ++currentSample) {
-        intervalStart += kSampleStepSize;
-      }
-      --currentSample;
-
-      // Interpolate to provide an initial guess for t
-      var dist = (aX - mSampleValues[currentSample]) / (mSampleValues[currentSample+1] - mSampleValues[currentSample]);
-      var guessForT = intervalStart + dist * kSampleStepSize;
-
-      var initialSlope = getSlope(guessForT, mX1, mX2);
-      if (initialSlope >= NEWTON_MIN_SLOPE) {
-        return newtonRaphsonIterate(aX, guessForT);
-      } else if (initialSlope === 0.0) {
-        return guessForT;
-      } else {
-        return binarySubdivide(aX, intervalStart, intervalStart + kSampleStepSize);
-      }
-    }
-
-    var _precomputed = false;
-    function precompute() {
-      _precomputed = true;
-      if (mX1 != mY1 || mX2 != mY2)
-        calcSampleValues();
-    }
-
-    var f = function (aX) {
-      if (!_precomputed) precompute();
-      if (mX1 === mY1 && mX2 === mY2) return aX; // linear
-      // Because JavaScript number are imprecise, we should guarantee the extremes are right.
-      if (aX === 0) return 0;
-      if (aX === 1) return 1;
-      return calcBezier(getTForX(aX), mY1, mY2);
-    };
-
-    f.getControlPoints = function() { return [{ x: mX1, y: mY1 }, { x: mX2, y: mY2 }]; };
-
-    var args = [mX1, mY1, mX2, mY2];
-    var str = "BezierEasing("+args+")";
-    f.toString = function () { return str; };
-
-    var css = "cubic-bezier("+args+")";
-    f.toCSS = function () { return css; };
-
-    return f;
-  }
-
-  // CSS mapping
-  BezierEasing.css = {
-    "ease":        BezierEasing(0.25, 0.1, 0.25, 1.0),
-    "linear":      BezierEasing(0.00, 0.0, 1.00, 1.0),
-    "ease-in":     BezierEasing(0.42, 0.0, 1.00, 1.0),
-    "ease-out":    BezierEasing(0.00, 0.0, 0.58, 1.0),
-    "ease-in-out": BezierEasing(0.42, 0.0, 0.58, 1.0)
-  };
-
-  return BezierEasing;
-
-}));
-
-
-/* 
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
+ * Written on Sunday Nov. 7th at 3PM (during my kids' naptime - don't judge me if this has some bugs...I wrote this in 3 hours)
+ * 
+ * Rewritten because my last portfolio site was really old :)
+ * 
+ * Also, the intention is to show what I can do in the span of a few hours, not the frameworks I know how to use.
  */
 
+// closure to avoid polluting the DOM
+(function() {
 
-var CustomVideo = function(container) {
-    var __ = this;
-    
-    __.container = container;
-    __.isFirstTimePlaying = true;
-    __.isPlaying = false;
-    __.canPlayThrough = false;
-    
-    return __;
-};
+// was expecting to use more here
+const Helpers = {
+	// random number between 0 and x, excluding x (https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random)
+	randomIndex(x) {
+		return Math.floor( Math.random() * x )
+	},
+}
 
-(function($) {
-    
-    CustomVideo.prototype.init = function() {
-        var __ = this;
-        
-        // find the video elements
-        __.video = $(__.container).children('video')[0];
-        __.glyph = $(__.container).find('.glyphicon');
-        __.touchLayer = $(__.container).children('a')[0];
-        
-        // prepare the presentation of the player
-        var src = $(__.video).prop('poster');
-        if(src) {
-            var img = new Image();
-            img.onload = function() {
-                $(img).css({ position: 'absolute', width: '100%', height: '100%', top: 0, left: 0 });
-                $(__.touchLayer).prepend(img);
-            };
-            img.src = src;
-            __.posterImage = img;
-        }
-        
-        // define the play and pause timelines for later
-        TweenLite.set(__.touchLayer, {
+// store all my animations in a singleton
+const Animations = {
+
+	// the welcome animation in the hero
+	welcome({ sentimentElem, clientElem, downPromptElem, downPromptPElem, downPromptGElem, clientName }) {
+		const h = window.innerHeight
+		const w = window.innerWidth
+		const scrollPercent = ScrollSystem.getPageScrollPercent()
+
+		TweenLite.set(sentimentElem, {
+			top: (h/3) - 27,
+			z: 0.001
+		})
+
+		TweenLite.set(clientElem, {
+			top: ((h/3) * 1.3333) - 100,
+			z: 0.001
+		})
+
+		// magic number 7% of page scroll is about where we don't want to fade in the prompt animation
+		if(scrollPercent < 0.07) {
+			TweenLite.set(downPromptElem, { perspective: 500, transformStyle: "preserve-3d" })
+			TweenLite.set(downPromptPElem, { x: 0, y: 100, z: 0.001 })
+			TweenLite.set(downPromptGElem, { x: 0, y: 150, z: 0.001 })
+		}
+
+		clientElem.textContent = clientName
+		
+		var tl = gsap.timeline()
+		tl.paused(true)
+
+		tl.addLabel('client', 0.35)
+		tl.to(sentimentElem, 0.35, { opacity: 1, ease: Power1.easeIn })
+		tl.to(clientElem, 1.3, { opacity: 1, delay: 0.3, ease: Power1.easeIn }, 'client')
+
+		// magic number 7% of page scroll is about where we don't want to fade in the prompt animation
+		if(scrollPercent < 0.07) {
+			tl.to(downPromptElem, 1, { opacity: 1, delay: 0.8, ease: Power1.easeInOut }, 'client')
+			tl.to(downPromptPElem, 1.6, { y: 0, delay: 0.8, ease: Power3.easeInOut}, 'client')
+			tl.to(downPromptGElem, 1.3, { y: 0, delay: 1.4, ease: Back.easeOut.config(1.7) }, 'client')
+		}
+		
+		// kill this once we are complete
+		tl.eventCallback('onComplete', (evt) => {
+			tl.clear()
+			tl.eventCallback('onComplete', null)
+		})
+
+		tl.play()
+	},
+
+	// play/pause button animations on videos
+	videoClicked({ anchorElem, videoElem, glyphElem }) {
+		TweenLite.set(anchorElem, {
             perspective: 500,
             transformStyle: "preserve-3d"
-        });
-        __.glyphTL = new TimelineMax();
-        __.glyphTL.stop();
-        __.glyphTL.set(__.video, { z: -200, opacity: 1 });
-        __.glyphTL.set(__.glyph, { z: -200, opacity: 1 });
-        __.glyphTL.to(__.glyph, 0.5, { opacity: 0, z: 0.001, ease: Power1.easeOut });
-        
-        // private
-        function handleTouchLayerClicked(evt) {
-            evt.preventDefault();
-            
-            if(__.isFirstTimePlaying) {
-                TweenLite.to(__.posterImage, 1.5, { opacity: 0, ease: Power2.easeOut });
-                __.isFirstTimePlaying = false;
-                ga('send', 'event', 'video', 'play', 'first time');
-            }
-            
-            if(__.isPlaying) {
-                console.log('pause')
-                __.glyph.removeClass('glyphicon-play').addClass('glyphicon-pause');
-                __.glyphTL.restart();
-                __.glyphTL.play();
-                __.video.pause();
-                ga('send', 'event', 'video', 'pause', 'after play');
-            } else {
-                __.glyph.removeClass('glyphicon-pause').addClass('glyphicon-play');
-                __.glyphTL.restart();
-                __.glyphTL.play();
-                __.video.play();
-                ga('send', 'event', 'video', 'play', 'after pause');
-            }
-        }
-        
-        // set up events
-        $(__.touchLayer).on('click', handleTouchLayerClicked);
-//        if(isMobile) {
-//            var gestureTouchLayer = new Hammer(__.touchLayer);
-//            gestureTouchLayer.on('tap', handleTouchLayerClicked);
-//        } else {
-//            $(__.touchLayer).on('click', handleTouchLayerClicked);
-//        }
-            
-        $(__.video).on('ended', function(evt) {
-            console.log('ended')
-            __.isPlaying = false;
-            __.isFirstTimePlaying = true;
-            __.showReadyPlay();
-            ga('send', 'event', 'video', 'ended');
-        });
-        
-        $(__.video).on('pause', function(evt) {
-            __.isPlaying = false;
-        });
-        
-        $(__.video).on('play', function(evt) {
-            __.isPlaying = true;
-        });
-        
-        $(__.video).on('playing', function(evt) {
-            __.isPlaying = true;
-        });
-        
-        $(__.video).on('canplaythrough', function(evt) {
-            __.canPlayThrough = true;
-        });
-    };
-    
-    CustomVideo.prototype.showReadyPlay = function() {
-        var __ = this;
-        console.log(this);
-        __.glyph.removeClass('glyphicon-pause').addClass('glyphicon-play');
-        TweenLite.to(__.glyph, 1, { opacity: 0.7, fontSize: 94, ease: Power1.easeInOut });
-        TweenLite.to(__.posterImage, 1.5, { opacity: 1, ease: Power2.easeOut });
-    };
-    
-})(jQuery);
+        })
+        const tl = gsap.timeline()
+		tl.paused(true)
+        tl.set(videoElem, { z: -200, opacity: 1 })
+        tl.set(glyphElem, { z: -200, opacity: 1 })
+        tl.to(glyphElem, 0.5, { opacity: 0, z: 0.001, ease: Power1.easeOut })
+		return tl
+	},
 
+	// generic aniimation for fading something out/in based on scroll
+	scrollFadeAnimation({ elemToFadeOut, byScroll }) {
+		const options = { paused: true }
+		const tl = gsap.timeline(options);
+		tl.set(elemToFadeOut, {opacity: 1})
+		tl.to(elemToFadeOut, { opacity: 0, duration: byScroll, ease: Power1.easeOut })
+		return tl
+	}
+}
 
-
-/* 
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
+/**
+ * Custom video player class.
+ * 
+ * Each video comes with a play/pause button (glyph) and a cta that covers the video element.
+ * 
+ * Behavior is simple: 1 click to start the video, 1 click to pause. When the video ends it resets.
+ * 
  */
+class VideoPlayer {
+
+	/**
+	 * @constructor
+	 * @param {Object} elem - the <video> element on which the player behavior will hang
+	 */
+	constructor(elem) {
+		// bind
+		this.ctaClicked = this.ctaClicked.bind(this)
+		this.onEnded = this.onEnded.bind(this)
+		this.onPause = this.onPause.bind(this)
+		this.onPlay = this.onPlay.bind(this)
+		this.onCanPlayThrough = this.onCanPlayThrough.bind(this)
+		this.onShouldPause = this.onShouldPause.bind(this)
+
+		// set
+		this.isPlaying = false
+		this.canplaythrough = false
+		this.isFirstPlay = true
+		this.videoElem = elem
+		this.container = this.videoElem.parentElement
+		this.cta = this.container.querySelector('a')
+		this.glyphElem = this.cta.querySelector('.glyphicon')
+		const options = { anchorElem: this.cta, videoElem: this.videoElem, glyphElem: this.glyphElem }
+		this.clickAnimTimeline = Animations.videoClicked(options)
+
+		// do
+		window.addEventListener('MIKE_VIDEO_PLAYER:SHOULD:PAUSE', this.onShouldPause)
+		this.cta.addEventListener('click', this.ctaClicked)
+		this.videoElem.addEventListener('ended', this.onEnded)
+		this.videoElem.addEventListener('pause', this.onPause)
+		this.videoElem.addEventListener('play', this.onPlay)
+		this.videoElem.addEventListener('playing', this.onPlay)
+		this.videoElem.addEventListener('canplaythrough', this.onCanPlayThrough)
+		this.loadVideo()
+	}
+
+	// load all the visual elements on the page first, then I can load mp4s
+	loadVideo() {
+		this.videoElem.setAttribute('src', this.videoElem.dataset.src)
+	}
+
+	ctaClicked(evt) {
+		evt.preventDefault()
+
+		if(this.isFirstPlay) {
+			this.isFirstPlay = false
+			ga('send', 'event', 'video', 'play', 'first time')
+		}
+
+		if(this.isPlaying) {
+			this.glyphElem.classList.remove('glyphicon-play')
+			this.glyphElem.classList.add('glyphicon-pause')
+			this.clickAnimTimeline.restart()
+			this.clickAnimTimeline.play()
+			this.videoElem.pause()
+			ga('send', 'event', 'video', 'pause', 'after play')
+		} else {
+			this.glyphElem.classList.remove('glyphicon-pause')
+			this.glyphElem.classList.add('glyphicon-play')
+			this.clickAnimTimeline.restart()
+			this.clickAnimTimeline.play()
+			this.videoElem.play()
+			this.triggerPause() // trigger a pause event to other videos that may be playing
+			ga('send', 'event', 'video', 'play', 'after pause')
+		}
+	}
+
+	triggerPause() {
+		const event = new CustomEvent('MIKE_VIDEO_PLAYER:SHOULD:PAUSE', { detail: this.cta })
+		window.dispatchEvent(event);
+	}
+
+	onEnded(evt) {
+		this.resetState()
+		ga('send', 'event', 'video', 'ended')
+	}
+
+	onPause(evt) {
+		this.isPlaying = false
+	}
+
+	onPlay(evt) {
+		this.isPlaying = true
+	}
+
+	onCanPlayThrough(evt) {
+		this.canplaythrough = true
+	}
+	
+	onShouldPause(evt) {
+		if(evt.detail === this.cta) {
+			return
+		}
+		this.videoElem.pause()
+	}
+
+	resetState() {
+		this.isPlaying = false
+		this.isFirstPlay = true;
+        this.glyphElem.classList.remove('glyphicon-pause')
+		this.glyphElem.classList.add('glyphicon-play')
+        TweenLite.to(this.glyphElem, 1, { opacity: 0.7, fontSize: 94, ease: Power1.easeInOut })
+    };
+
+}
+
+/**
+ * Setup a singleton to watch page scroll, update everyone else via a plugin system
+ */
+const ScrollSystem = (function() {
+	// set
+	let y = window.scrollY
+	let pageHeight = document.documentElement.offsetHeight
+	let pageScrollPercent = gsap.utils.normalize(0, pageHeight, y)
+	let plugins = {}
+	
+
+	// do
+	window.addEventListener('scroll', onUpdate, { passive: true }) 
+
+	// methods
+	function onUpdate(evt) {
+		y =  window.pageYOffset
+		pageScrollPercent = gsap.utils.normalize(0,pageHeight,y)
+		for (const pluginName in plugins) {
+			plugins[pluginName]({ scrollValue: y, scrollPercent: pageScrollPercent })
+		}
+	}
+
+	// public
+	return {
+		listen({ name, exec }) {
+			plugins[name] = exec
+		},
+		getPageHeight() {
+			return pageHeight
+		},
+		getPageScroll() {
+			return y
+		},
+		getPageScrollPercent() {
+			return pageScrollPercent
+		}
+	}
+})()
+
+/**
+ * A small page manager to handle some UI elements:
+ * 
+ * 1. welcome animation once the page is ready
+ * 2. hide/show a scroll prompt
+ * 3. personalize the page for companies I'm interviewing with. Otherwise, show a defaul message.
+ */
+class Page {
+	constructor() {
+		// bind
+		this.pageLoaded = this.pageLoaded.bind(this)
+		this.scrollFadePrompt = this.scrollFadePrompt.bind(this)
+		
+		// set
+		this.genericGreetings = [
+			`I'm glad you're here`, 
+			'Glad you made it!', 
+			'🙌',
+		]
+		this.currentInterviews = [
+			'Netflix',
+			'GitHub',
+			'Twilio'
+		]
+		this.documentElement = document.documentElement
+		this.pageWidth = this.documentElement.offsetWidth
+		this.pageHeight = ScrollSystem.getPageHeight()
+		this.header = this.documentElement.querySelector('header')
+		this.sentimentElem = this.header.querySelector('.sentiment')
+		this.clientElem = this.header.querySelector('.client')
+        this.downPromptElem = this.documentElement.querySelector('.downPrompt')
+		this.downPromptTL = this.createScrollAnimation()
+		this.downPromptElemTween = new TweenMax(this.downPromptElem, { opacity: 0, duration: 1, ease: Power1.easeIn })
+        this.downPromptPElem = this.downPromptElem.querySelector('.downPrompt p')
+        this.downPromptGElem = this.downPromptElem.querySelector('.downPrompt .glyphicon')
+		this.clientName = (window.location.search.indexOf('client') > -1) ? this.getClientName() : this.genericGreetings[Helpers.randomIndex(this.genericGreetings.length)]
+		this.videoElems = [...this.documentElement.querySelectorAll('video')].filter(v => !v.hasAttribute('autoplay'))
+		this.videoElems.map(video => new VideoPlayer(video))
+		
+		// do
+		document.addEventListener('DOMContentLoaded', this.pageLoaded)
+		ScrollSystem.listen({ name: 'prompt', exec: this.scrollFadePrompt }) // register for scroll events
+		
+	}
+
+	/**
+	 * I send custom links to companies I'm currently interviewing with, it will include the company name in the hero
+	 * 
+	 * @returns {String} - client Name
+	 */
+	getClientName() {
+		const idx = window.location.search?.split('&').filter(item => item.indexOf('client'))?.map(item => item.split('='))?.pop()?.pop()
+
+		if(!idx) {
+			return this.genericGreetings[Helpers.randomIndex(this.genericGreetings.length)]
+		}
+
+		return this.currentInterviews[idx]
+	}
+
+	pageLoaded(evt) {
+		const options = {
+			sentimentElem: this.sentimentElem,
+			clientElem: this.clientElem,
+			clientName: this.clientName,
+			downPromptElem: this.downPromptElem,
+			downPromptGElem: this.downPromptGElem,
+			downPromptPElem: this.downPromptPElem
+		}
+		Animations.welcome(options)
+	}
+
+	createScrollAnimation() {
+		const viewportHeight = window.innerHeight
+		const firstElemY = this.documentElement.querySelector('#apple').offsetTop
+		const diff = Math.abs(firstElemY - viewportHeight)
+		const options = { elemToFadeOut: this.downPromptElem, byScroll: diff }
+		return Animations.scrollFadeAnimation(options)
+	}
+
+	scrollFadePrompt({ scrollValue }) {
+		this.downPromptTL.time(scrollValue)
+	}
+}
 
 
-"use strict";
-var videos = [];
+const page = new Page()
 
-(function() {
-    $(window).load(function() {
-
-        // config
-
-        // globals
-        var w, h;
-        var container = $('.container');
-        var welcome = $('.sentiment');
-        var client = $('.client');
-        var downPrompt = $('.downPrompt');
-        var downPromptP = $('.downPrompt p');
-        var downPromptG = $('.downPrompt .glyphicon');
-
-        var seagate = $('.seagate');
-        var whoami = $('.whoami');
-        
-        var companyName = window.location.hash || 'Apple';
-        var companies = ['Apple', 'SSB', 'The Supply', 'Christina'];
-        
-        // setup
-        function setup() {
-            setDimensions();
-
-            // get all the video elements
-            $('.videoContainer').each(function(idx) {
-                var vid = new CustomVideo(this);
-                vid.init();
-                videos.push(vid);
-            });
-
-            // set elements
-            TweenLite.set(window.document.body, { scrollTop: 0 });
-
-            TweenLite.set(welcome, {
-                top: (h/3) - 27,
-                z: 0.001
-            });
-
-            TweenLite.set(client, {
-                top: ((h/3) * 1.3333) - 100,
-                z: 0.001
-            });
-
-            TweenLite.set(downPrompt, {
-                perspective: 500,
-                transformStyle: "preserve-3d"
-            });
-
-            TweenLite.set(downPromptP, { x: 0, y: 100, z: 0.001 });
-            TweenLite.set(downPromptG, { x: 0, y: 150, z: 0.001 });
-
-            if(isMobile) {
-                $('p').css({ 'font-weight': 300 });
-            }
-
-            initWelcome();
-        }
-
-        function setDimensions() {
-            w = $(window).width();
-            h = $(window).height();
-        }
-
-        function initWelcome() {
-            
-            // do some work on the name
-            companyName = companyName.replace('#', '').replace('%20', ' ');
-            if(companies.indexOf(companyName) === -1) {
-                companyName = 'Apple';
-            }
-            client.text(companyName);
-            
-            var wtl = new TimelineMax();
-            wtl.stop();
-
-            wtl.addLabel('client', 0.85);
-
-            wtl.to(welcome, 0.85, { opacity: 1, ease: new BezierEasing(.77,0,.82,1) });
-            wtl.to(client, 1.3, { opacity: 1, delay: 0.3, ease: new BezierEasing(.77,0,.82,1) }, 'client');
-            wtl.to(downPrompt, 1, { opacity: 1, delay: 0.8, ease: Power1.easeInOut }, 'client');
-            wtl.to(downPromptP, 1.6, { y: 0, delay: 0.8, ease: Power3.easeInOut}, 'client');
-            wtl.to(downPromptG, 1.3, { y: 0, delay: 1.4, ease: Back.easeOut.config(1.7) }, 'client');
-
-            wtl.play();
-        }
-
-        function updateScroll() {
-            var sAmt = window.document.body.scrollTop;
-            var fadeAmount = sAmt / 100;
-            TweenLite.set(downPrompt, { opacity: 1 - fadeAmount });
-            TweenLite.set(whoami, { opacity: (fadeAmount/8) });
-        }
-
-        // events
-        $(window).on('scroll', updateScroll);
-
-        $('.downPrompt a').on('click', function(evt) {
-            evt.preventDefault();
-            console.log('animating...');
-            console.dir(window.document.body);
-            TweenLite.to(window.document.body, 1, { scrollTop: whoami.offset().top, ease: Power2.easeOut });
-        });
-
-        // run
-        setup();
+})()
 
 
-    });
-})(jQuery);
+
+

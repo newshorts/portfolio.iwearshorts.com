@@ -1,5 +1,5 @@
 /* generic */
-@import url(http://fonts.googleapis.com/css?family=Lato:400,700,300,100);
+@import url(https://fonts.googleapis.com/css?family=Lato:400,700,300,100);
 
 /* http://meyerweb.com/eric/tools/css/reset/ 
    v2.0 | 20110126
@@ -89,7 +89,7 @@ h4 {
 
 p {
     font-size: 24px;
-    font-weight: 100;
+    font-weight: 300;
     line-height: 1.445;
     /*color: #777;*/
 }
@@ -121,32 +121,42 @@ main article {
     border-bottom: 1px solid #eee;
 }
 
+article.col-sm-12 {
+    padding-right: 0;
+    padding-left: 0;
+}
+
+.row {
+    margin-left: 0;
+    margin-right: 0;
+}
+
 /* header */
 
 .sentiment,
 .client {
     opacity: 0;
-    position: relative;
+    /* position: relative; */
 }
 
 .sentiment {
     font-size: 54px;
     font-weight: 100;
-    top: 0;
+    /* top: 0; */
 }
 
 .client {
     font-size: 100px;
-    top: 69px;
-    margin-top: 5px;
+    /* top: 69px; */
+    /* margin-top: 5px; */
 }
 
-header .glyphicon {
+/* header .glyphicon {
     color: rgb(130,130,130);
     margin-top: 100px;
     text-align: center;
     display: inherit;
-}
+} */
 
 /* main */
 
@@ -206,13 +216,32 @@ article h4 {
 }
 
 .label-default {
-    background-color: #d9d9d9;
+    /* background-color: #d9d9d9; */
     color: white;
+}
+
+.apple {
+    margin-top: 90vh;
+}
+
+/* not-everything */
+
+/* .not-everything {
+    margin-top: 150vh;
+} */
+
+.not-everything a {
+    font-weight: bold;
+    color: #444;
+}
+
+.not-everything a:hover {
+    text-decoration: underline;
 }
 
 /* whoami */
 
-.whoami {
+/* .whoami {
     margin-top: 68%;
     opacity: 0;
 }
@@ -224,7 +253,7 @@ article h4 {
 
 .whoami a:hover {
     text-decoration: underline;
-}
+} */
 
 /* seagate */
 
@@ -253,16 +282,10 @@ footer p {
 
 .downPrompt {
     display: block;
-    width: 300px;
-
     position: fixed;
     bottom: 20px;
-    left: 50%;
-    margin-left: -150px;
-
+    width: 100%;
     text-align: center;
-
-
     opacity: 0;
 }
 
@@ -270,5 +293,7 @@ footer p {
     color: #444;
     font-weight: 300;
     font-size: 18px;
+    margin-left: auto;
+    margin-right: auto;
     margin-bottom: 20px
 }

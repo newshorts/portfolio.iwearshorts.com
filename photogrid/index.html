@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<!--
+To change this license header, choose License Headers in Project Properties.
+To change this template file, choose Tools | Templates
+and open the template in the editor.
+-->
+<html>
+    <head>
+        <title>TODO supply a title</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+        <link rel="stylesheet" type="text/css" href="css/reset.css" />
+        <link rel="stylesheet" type="text/css" href="css/style.css" />
+        
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
+        <script src="js/slider.js"></script>
+        <script src="js/tools.js"></script>
+        <script src="js/positions.js"></script>
+        <script src="js/tile.js"></script>
+        <script>
+            (function() {
+                $(window).load(function() {
+                    /* global positions */
+                    var $world = $('.world');
+                    var worldW = $world.width();
+                    var tilesPerRow = 4;
+                    var tilePadding = 10;
+                    var imageFilenames = ["dsc_6001.jpg", "dsc_6081.jpg", "dsc_6013.jpg", "dsc_6268.jpg", "dsc_6397.jpg", "dsc_6345.jpg", "dsc_6378.jpg", "dsc_6413.jpg", "dsc_6417.jpg"];
+                    for(var i = 0, len = imageFilenames.length; i < len; i++) {
+                        imageFilenames[i] = 'images/' + imageFilenames[i];
+                    }
+                    
+                    // events
+                    $(window).on('resize', layout);
+                    
+                    // helpers
+                    function init() {
+                        layout();
+//                        positions.deleteLocal();
+                        if(positions.hasLocal()) {
+                            positions.instantiateFromLocal(tilesPerRow);
+                        } else {
+                            positions.generate(tilesPerRow, imageFilenames);
+                        }
+                        layout();
+                        
+                        var tools = new Tools();
+                        
+                        
+                        var zoom = new Slider('zoom');
+                        zoom.onInput = function(val) {
+                            $world.addClass('hidden');
+                        };
+                        
+                        zoom.onChange = function(val) {
+                            console.log(val);
+                            var percent = (val / 100);
+                            
+                            $world.css({
+                                width: percent * worldW + 'px'
+                            });
+                            
+                            layout();
+                            $world.removeClass('hidden');
+                        };
+                        
+                    }
+                    
+                    function layout(evt) {
+                        var tileW = ($world.width() / tilesPerRow) - (2 * tilePadding);
+                        var tileH = (tileW > 200) ? Math.round(tileW * 0.675) : tileW;
+                        positions.tileWidth = tileW;
+                        positions.tileHeight = tileH;
+                        positions.gutter = 5;
+                        positions.tilePadding = tilePadding;
+                        positions.imageNames = imageFilenames;
+                        positions.update();
+                        $world.height((tileH + (2 * tilePadding)) * positions.numRows);
+                    }
+                    
+                    // do it
+                    init();
+                    
+                });
+            })(jQuery);
+        </script>
+    </head>
+    <body>
+        <header>
+            <h1>Photo Grid</h1>
+            <nav>
+                <input type="range" id="zoom" min="33" value="66" max="99" step="1">
+            </nav>
+        </header>
+        <main class="container">
+            <section class="grid">
+                <figure class="world">
+                    <div class="tools">
+                        <a href="#" class="play"></a>
+                        <a href="#" class="add"></a>
+                        <a href="#" class="download"></a>
+                    </div>
+                </figure>
+            </section>
+        </main>
+        <footer>
+            <p>Thanks.</p>
+        </footer>
+        <section class="movieOverlay">
+            <div class="movieBg"></div>
+            <div class="movieScreen"></div>
+        </section>
+    </body>
+</html>
