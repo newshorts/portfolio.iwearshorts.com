@@ -1,9 +1,9 @@
 /**
- * Written on Sunday Nov. 7th at 3PM (during my kids' naptime - don't judge me if this has some bugs...I wrote this in 3 hours)
+ * Written on Sunday Nov. 7th at 3PM (during my kids' naptime - don't judge if there are some bugs 😃)
  * 
  * Rewritten because my last portfolio site was really old :)
  * 
- * Also, the intention is to show what I can do in the span of a few hours, not the frameworks I know how to use.
+ * Also, the intention is to show what I can do in the span of a few hours, without frameworks.
  */
 
 // closure to avoid polluting the DOM
